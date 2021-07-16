@@ -14,7 +14,7 @@ opam install coq.8.13.2 coq-equations # Install coq and coq-equations
 ```
 Next you can to clone the repository: 
 ```
-git clone --recursive https://github.com/uds-psl/ba_hagemeier.git 
+git clone --recursive https://github.com/uds-psl/intuitionistic-epistemic-logic.git 
 cd ba_hagemeier
 ```
 This should also clone the base-library. 
@@ -30,6 +30,7 @@ On my machine a complete build with 4 threads takes about 2.5 minutes, without c
 A Coqdoc of this project can be found [here](https://www.ps.uni-saarland.de/~hagemeier/website/toc.html).
 ## Acknowledgements
 * The project uses the uds-psl Base Library.
-* The decidability proof are similar to those by Hai Dang.
+* We use a permutation solver which is an improved version of [foreverbell's solver](https://github.com/foreverbell/permutation-solver).
+* The decidability proof are similar to those by [Hai Dang](https://ps.uni-saarland.de/~dang/ri-lab.php).
 * The file `gentree.v` is taken from my ACP Project.
 
