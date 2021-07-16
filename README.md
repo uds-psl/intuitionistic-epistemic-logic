@@ -15,12 +15,11 @@ opam install coq.8.13.2 coq-equations # Install coq and coq-equations
 Next you can to clone the repository: 
 ```
 git clone --recursive https://github.com/uds-psl/intuitionistic-epistemic-logic.git 
-cd ba_hagemeier
+cd intuitionistic-epistemic-logic
 ```
 This should also clone the base-library. 
 First you need to compile the base library, for this run
 ``
-cd external/base
 make -C external/base-library
 ``
 Afterwards running `make` should compile the project.
