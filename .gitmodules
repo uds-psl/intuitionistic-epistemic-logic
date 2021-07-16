@@ -1,0 +1,3 @@
+[submodule "external/base-library"]
+	path = external/base-library
+	url = https://github.com/uds-psl/base-library.git
