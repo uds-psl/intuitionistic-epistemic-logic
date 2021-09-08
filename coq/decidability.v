@@ -7,11 +7,10 @@ Require Import Coq.Classes.Morphisms.
 Require Import Coq.Program.Basics.
 Require Import Coq.Program.Tactics.
 Require Import Coq.Classes.CRelationClasses.
-Require Import toolbox.
+Require Import toolbox nd.
 Notation "'K[' Δ ']'" := (List.map K Δ).
 
 (** * Sequent Calculus for IEL *)
-Definition context := list form.
 Section EntailmentRelationProperties.
 
   Variable F: Type.
@@ -675,10 +674,8 @@ Section Decidability.
   Proof.  intros x y. hnf. destruct y. left. tauto. right. tauto.  Qed. 
 
 
-  Theorem ielg_dec: dec (nd A0 s0).
-  Proof.
-    apply (dec_prop_iff) with (X := gen A0 s0).
-    split; apply ndgen_iff. 
+  Theorem gen_dec: dec (gen A0 s0).
+  Proof.   
     assert (A1: A0 <<= U).
     { apply scl_incl; auto. }
     assert (A2: s0 el U).
@@ -687,5 +684,14 @@ Section Decidability.
     + left. apply genW with (rep A0 U).   apply lambda_gen.  auto.
       apply rep_incl.
     +  right.  intro.  apply E. apply gen_lambda.  auto. auto. auto.
+  Defined.      
+  
+  Theorem ielg_dec: dec (nd A0 s0).
+  Proof.
+    apply (dec_prop_iff) with (X := gen A0 s0).
+    split; apply ndgen_iff.
+    apply gen_dec.
   Defined.
+
+  
 End  Decidability.

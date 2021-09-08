@@ -6,8 +6,8 @@ forms.v
 nd.v 
 embeddingIPC.v
 embeddingCoq.v
+models.v
 modelsClassicalCompleteness.v
-modelsConstructiveCompletenesss.v
 decidability.v
 permutationScIEL.v
 structuralProperties.v
@@ -18,3 +18,5 @@ percival.v
 toolbox.v
 gentree.v
 
+constructiveCompleteness.v
+semanticCutElimination.v
