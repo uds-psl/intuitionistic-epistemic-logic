@@ -90,21 +90,18 @@ We first define the relations.
   Definition subsetVerif (A B:mcTheory) := 
     forall a, ((T A) (K a)) -> (T B) a.
   Instance canonical: (KripkeModel).
-  apply mkKripkeModel with (world := mcTheory) (cogn := subsetMKT) (val := valuationMKT) (verif := subsetVerif).
-  try firstorder.
-  firstorder.
-  2: firstorder.
-  + intros A B c d' E. apply Ttheory with (φ := d'). destruct B. simpl. apply ndtA. apply c. apply ndtA in E. apply ndtKpos in E.
-    apply Ttheory in E. exact E.
-
+  Proof.
+    apply mkKripkeModel with (world := mcTheory) (cogn := subsetMKT) (val := valuationMKT) (verif := subsetVerif).
+    all: try firstorder.
+    intros A B c d' E. apply Ttheory with (φ := d'). destruct B. simpl. apply ndtA. apply c. apply ndtA in E. apply ndtKpos in E.
+      apply Ttheory in E. exact E.
   Defined.
 
   Lemma deductionGamma (Gamma: mcTheory) (phi: form):  ndT (T Gamma) phi <-> (T Gamma) phi.
   Proof.
-    (* *)
     split.
-    intro. apply Ttheory in H. exact H.
-    apply ndtA.
+    - intro. apply Ttheory in H. exact H.
+    - apply ndtA.
   Qed.
   Hint Resolve deductionGamma : core.
   
@@ -112,17 +109,17 @@ We first define the relations.
     ((T t) (φ ∨ ψ)) <-> (ndT (T t) φ) \/ ndT (T t) ψ.
   Proof.
     intros. split.
-    + intro. 
+    - intro. 
       apply prime. 
       apply deductionGamma.
       exact H.
-    + intro. destruct H; eauto. 
-    - apply deductionGamma. apply ndtDIL. eauto.
-    - apply deductionGamma. apply ndtDIR. eauto. 
-
+    - intro. destruct H; eauto. 
+      + apply deductionGamma. apply ndtDIL. eauto.
+      + apply deductionGamma. apply ndtDIR. eauto. 
   Qed.
 
-End Canonical. 
+End Canonical.
+
 Lemma canonicalIEL (DN: DN): isIEL (@canonical normal).
 Proof.
   intros w.
@@ -132,12 +129,10 @@ Proof.
     destruct w. apply consistentT0.
     apply @Ttheory0.
     apply @ndtIE with (s := (K ⊥)).
-    
     - apply @ndtW with (T := empty).
       + apply IELKBot. 
       + firstorder.
     - simpl T in H.  exact H.    
-
   }
   exists (lindenBaumTheory DN  H).
   intros x H1. simpl lindenBaumTheory.
@@ -242,101 +237,100 @@ Section Completeness.
   Qed.
 
   
-    Lemma evalKimp {M: KripkeModel} s t w: evalK s w -> evalK (Imp s t) w -> evalK t w.
-    Proof.
-      intros H0 H1.
-      apply H1. apply preorderCogn. auto.
-    Qed.
+  Lemma evalKimp {M: KripkeModel} s t w: evalK s w -> evalK (Imp s t) w -> evalK t w.
+  Proof.
+    intros H0 H1.
+    apply H1. apply preorderCogn. auto.
+  Qed.
 
-    Lemma evalKdistr {M: KripkeModel} s w w': evalK (K s) w -> verif w w' -> evalK s w'.
-    Proof.
-      intros.
-      apply H.
-      exact H0.
-    Qed.
+  Lemma evalKdistr {M: KripkeModel} s w w': evalK (K s) w -> verif w w' -> evalK s w'.
+  Proof.
+    intros.
+    apply H.
+    exact H0.
+  Qed.
 
 
-    Definition ctx2thy (Γ: context) := fun x => In x Γ. 
+  Definition ctx2thy (Γ: context) := fun x => In x Γ. 
 
-    Lemma ndSoundIELCtx (A: context) (s: form) {p: DerivationType}  (D:@nd p A s):entails  (ctx2thy A) s.
-    Proof.
-      intros M Mc. induction D.
-      + eauto.
-      + intros.   exfalso. apply (IHD) with w; auto.   
-      + intros w1 c1 H2 c2 H3. apply IHD; auto.  intro s'. intro H4. destruct H4. subst s'.   assumption.  apply eval_monotone with (w := w1); auto.
-      + intros w H. apply evalKimp with (s0 := s). apply IHD2; auto. apply IHD1; auto.
-      + intros w H w' c H1 w'' v. specialize IHD with w. apply evalKimp with (s0 := s). apply H1. exact v.
-        apply evalKdistr with (w0 := w); auto. apply transvalid with (y := w'); auto.
-      + intros w H w' v. apply IHD; auto.  apply monotone_ctx with (w := w); try tauto; auto. apply  vericont; auto.
-      + intros w H1. apply IHD in H1; auto. destruct H1. auto. 
-      + intros w H1. apply IHD in H1; auto. destruct H1. auto. 
-      + intros w H1. split; auto.
-      + intros w H1. left. auto.
-      + intros w H1. right. auto.
-      + intros w H1. destruct (IHD1 Mc w H1).
-      - apply (IHD2 Mc w); auto. apply preorderCogn.
-      - apply (IHD3 Mc w); auto. apply preorderCogn.
-        + intros w H1 u c.  
-          apply monotone_ctx with (w' := u)  in H1. 2: auto.
-          unfold isIEL in Mc. destruct (Mc u).   
-          specialize (IHD Mc u). 
-          assert (evalK s x).
-          {
-            apply IHD; auto. 
-          }
-          intro.
-          apply (H2 x). apply vericont. auto.
-          apply H0.
-    Qed.
+  Lemma ndSoundIELCtx (A: context) (s: form) {p: DerivationType}  (D:@nd p A s):entails  (ctx2thy A) s.
+  Proof.
+    intros M Mc. induction D.
+    + eauto.
+    + intros.   exfalso. apply (IHD) with w; auto.   
+    + intros w1 c1 H2 c2 H3. apply IHD; auto.  intro s'. intro H4. destruct H4. subst s'.   assumption.  apply eval_monotone with (w := w1); auto.
+    + intros w H. apply evalKimp with (s0 := s). apply IHD2; auto. apply IHD1; auto.
+    + intros w H w' c H1 w'' v. specialize IHD with w. apply evalKimp with (s0 := s). apply H1. exact v.
+      apply evalKdistr with (w0 := w); auto. apply transvalid with (y := w'); auto.
+    + intros w H w' v. apply IHD; auto.  apply monotone_ctx with (w := w); try tauto; auto. apply  vericont; auto.
+    + intros w H1. apply IHD in H1; auto. destruct H1. auto. 
+    + intros w H1. apply IHD in H1; auto. destruct H1. auto. 
+    + intros w H1. split; auto.
+    + intros w H1. left. auto.
+    + intros w H1. right. auto.
+    + intros w H1. destruct (IHD1 Mc w H1).
+    - apply (IHD2 Mc w); auto. apply preorderCogn.
+    - apply (IHD3 Mc w); auto. apply preorderCogn.
+      + intros w H1 u c.  
+        apply monotone_ctx with (w' := u)  in H1. 2: auto.
+        unfold isIEL in Mc. destruct (Mc u).   
+        specialize (IHD Mc u). 
+        assert (evalK s x).
+        {
+          apply IHD; auto. 
+        }
+        intro.
+        apply (H2 x). apply vericont. auto.
+        apply H0.
+  Qed.
 
-    Lemma ndSoundIEL  (A: theory) (s: form) {p: DerivationType}  (D:@ndT p A s):entails A s.
-    Proof.
-      intros. destruct D. intros M c w H1. destruct H.
-      specialize (ndSoundIELCtx H0) . intro H2.   apply H2. auto. intros a Ha.
-      apply H1. apply H. apply Ha.
-    Qed.   
+  Lemma ndSoundIEL  (A: theory) (s: form) {p: DerivationType}  (D:@ndT p A s):entails A s.
+  Proof.
+    intros. destruct D. intros M c w H1. destruct H.
+    specialize (ndSoundIELCtx H0) . intro H2.   apply H2. auto. intros a Ha.
+    apply H1. apply H. apply Ha.
+  Qed.   
 
-    Lemma ndSound (Γ: theory) A {p: DerivationType}: Γ ⊢T A -> entails Γ A.
-    Proof.
-      intros. apply ndSoundIEL. auto.
-    Qed.
+  Lemma ndSound (Γ: theory) A {p: DerivationType}: Γ ⊢T A -> entails Γ A.
+  Proof.
+    intros. apply ndSoundIEL. auto.
+  Qed.
 
-    Inductive uno := Uno.
-    Definition cogUno := fun (x: uno) (y: uno) => True. 
-    Definition unoModel: KripkeModel.  
-      apply mkKripkeModel with (world := uno) (cogn := cogUno) (verif := cogUno) (val := fun x y => True).
-      firstorder eauto.
-      firstorder eauto.
-      firstorder eauto.
-      firstorder eauto.
-    Defined.
+  Inductive uno := Uno.
+  Definition cogUno := fun (x: uno) (y: uno) => True. 
+  Definition unoModel: KripkeModel.  
+    apply mkKripkeModel with (world := uno) (cogn := cogUno) (verif := cogUno) (val := fun x y => True).
+    firstorder eauto.
+    firstorder eauto.
+    firstorder eauto.
+    firstorder eauto.
+  Defined.
 
-    Lemma hasConstraint (D: DerivationType): model_constraint D unoModel.
-    Proof.
-      destruct D; firstorder eauto.
-    Qed.
+  Lemma hasConstraint (D: DerivationType): model_constraint D unoModel.
+  Proof.
+    destruct D; firstorder eauto.
+  Qed.
+  
+  Print Assumptions ndSound. 
+  Lemma ndConsistent (D: DerivationType): ~(nil ⊢ ⊥).
+  Proof.
+    intro.
+    specialize (ndSoundIELCtx H).  intro.
     
-    Print Assumptions ndSound. 
-    Lemma ndConsistent (D: DerivationType): ~(nil ⊢ ⊥).
-    Proof.
-      intro.
-      specialize (ndSoundIELCtx H).  intro.
-       
-      enough (exists M, (exists w, ~(@evalK M ⊥ w) /\ model_constraint D M)).
-      destruct H1 as (M & w & (H1 & H2)).  specialize (H0 M H2 w).
-      apply H1. apply H0. intros a Ha. destruct Ha.
+    enough (exists M, (exists w, ~(@evalK M ⊥ w) /\ model_constraint D M)).
+    destruct H1 as (M & w & (H1 & H2)).  specialize (H0 M H2 w).
+    apply H1. apply H0. intros a Ha. destruct Ha.
 
-      
-      exists unoModel. exists Uno.  split; try apply hasConstraint.
-      intro. simpl evalK in H1. auto. 
-    Qed.   
+    
+    exists unoModel. exists Uno.  split; try apply hasConstraint.
+    intro. simpl evalK in H1. auto. 
+  Qed.   
 End Completeness.
 
 (** Equivalence between completeness and LEM **)
 Notation "Γ ⊨ A" := (entails Γ A) (at level 100). 
 Section CompletenessLEM.
   Variable (D: DerivationType).
-  Definition XM := forall P, P \/ ~P. 
   Definition strongCompleteness := forall Γ φ, (entails Γ φ) -> Γ ⊢T φ.
   
   Definition falsityStable := forall Γ, ~~(ndT Γ ⊥) -> (ndT Γ ⊥).
@@ -358,10 +352,9 @@ Section CompletenessLEM.
     firstorder eauto using entailmentBotDN. 
   Qed.
 
-  Lemma fstab2LEM: falsityStable -> XM. 
+  Lemma fstab2LEM: falsityStable -> LEM. 
   Proof.
-    intro fstab.
-    intros P.
+    intros fstab P.
     pose (T := fun (x: form) => P \/ ~P).
     enough (T ⊢T ⊥).
     destruct H as (Γ & Hgam1 & Hgam2).
@@ -372,7 +365,7 @@ Section CompletenessLEM.
       apply H. apply ndtA. unfold T. apply H0.
   Qed.
 
-  Theorem st2lem: strongCompleteness -> XM.
+  Theorem st2lem: strongCompleteness -> LEM.
   Proof.
      intros H % st2fs. apply fstab2LEM; auto. 
   Qed.
