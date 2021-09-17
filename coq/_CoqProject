@@ -4,17 +4,10 @@
 
 forms.v
 nd.v 
-embeddingIPC.v
-embeddingCoq.v
 models.v
 modelsClassicalCompleteness.v
 decidability.v
-permutationScIEL.v
-structuralProperties.v
 decidabilityK.v
-permutationSCforK.v
-Permutations.v
-percival.v
 toolbox.v
 gentree.v
 
