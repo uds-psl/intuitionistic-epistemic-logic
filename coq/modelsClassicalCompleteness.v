@@ -404,10 +404,6 @@ Section CompletenessEnumerableMP.
     + apply (Some (decode x)).
     + apply None.
   Defined.
-  Require Import Coq.Arith.PeanoNat.
-  From Coq Require Import Numbers.NatInt.NZDiv.
-  
-From Coq Require Import Lia.
   Definition ftheroy' (f: nat -> bool) : nat -> option form :=
     fun n =>
          Some ((decode (n)) ∧ (¬ (decode (n)))).
