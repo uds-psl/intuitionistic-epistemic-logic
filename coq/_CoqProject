@@ -7,6 +7,8 @@ nd.v
 models.v
 modelsClassicalCompleteness.v
 decidability.v
+structuralProperties.v
+permutationSCforK.v
 decidabilityK.v
 toolbox.v
 gentree.v
