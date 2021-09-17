@@ -468,3 +468,186 @@ Proof.
 Qed. 
 
   
+(** ** Admissibility *)
+Section Admissibility.
+
+    Variable d: DerivationType.
+  Definition liftRelOne {X: Type} (R: X -> X -> Prop) (r1 r2: (option X)) :=
+    match (r1, r2) with
+      (Some x, Some y) => (R x y) |
+    (None, _)     => True |
+    _ => False
+    end.
+
+  Definition liftProp {X: Type} (R: X -> nat -> Prop) (r: (option X)) (n: nat) :=  
+    (match r with
+       Some r' => R r' n
+     | None => False end).
+  Lemma onSomeEqualsRlift {X: Type} x R  (n: nat): (@liftProp X R (Some x) n) <-> (R x n).
+    split; firstorder eauto.
+  Qed.  
+
+  Section liftRelProps.
+    Context {X: Type} {R: X -> X -> Prop} {R': X -> X -> Prop}.
+    
+    Definition lr := (liftRelOne R).
+    Definition lr' := (liftRelOne R').
+    
+    Lemma lr_in a b :
+      lr a b -> (exists b', a = None /\ b = Some b') \/ (exists a' b', a = Some a' /\ b = Some b') \/ (a = None /\ b = None).
+    Proof.
+      Unset Printing All.
+      intro.
+      unfold lr in H.
+      destruct a, b; firstorder eauto; try congruence.
+    Defined.
+    
+    Lemma preserves_reflexivity: Reflexive R -> Reflexive lr.
+    Proof.
+      intros.
+      intro x.
+      destruct x; firstorder eauto.
+    Defined.
+
+    Lemma preserves_transitivity: Transitive R -> Transitive lr.
+      intros H x y z H1 H2.
+      destruct x; destruct y; destruct z; firstorder eauto.
+    Defined.
+    Lemma preservesPreOrder: PreOrder R -> PreOrder lr.
+      intros H.  destruct H.  split.
+      apply preserves_reflexivity; auto.
+      apply preserves_transitivity; auto. 
+    Defined.
+
+    Lemma preservesSubrealtion: subrelation R R' -> subrelation lr lr'.
+    Proof.
+      intros H x  y H1.
+      destruct (lr_in H1); firstorder eauto; rewrite H0; rewrite H2.
+      cbv. auto. cbv. apply H. rewrite H0 in H1. rewrite H2 in H1.  cbv in H1. auto. 
+      cbv. auto.
+    Defined.
+
+    Lemma onSomeEqualsR x y: lr (Some x) (Some y) <-> (R x y).
+      split; firstorder eauto.
+    Qed.  
+  End liftRelProps. 
+
+  Definition reflectionModel (m: KripkeModel): (KripkeModel).
+
+    apply mkKripkeModel with (world := (option world)) (cogn := (liftRelOne  cogn)) (verif := (liftRelOne verif)) (val := (liftProp  val)).
+    + apply preservesPreOrder; auto. apply m. 
+    + intros s x y H H0.
+      destruct x; destruct y; firstorder eauto; try congruence.
+      destruct m. rewrite onSomeEqualsRlift. apply monotone with (x := w);
+                                               firstorder eauto using onSomeEqualsR. 
+    + destruct m.  apply preservesSubrealtion.  auto. 
+    + intros x y z. destruct m; destruct x; destruct y; destruct  z; firstorder eauto using onSomeEqualsR.
+      apply onSomeEqualsR.  apply transvalid with (y := w0).
+      rewrite<- onSomeEqualsR.  exact H.  rewrite<- onSomeEqualsR.  exact H0. 
+  Defined.
+
+  (* Derivability in the reflection model (Even nicer would be if submodels would be arbitrary) *)
+  Lemma derivReflSomeIdent (m: KripkeModel) ϕ: forall w, ((@evalK m ϕ w) <-> (@evalK (reflectionModel m) ϕ (Some w))). 
+  Proof.
+    - induction ϕ;try firstorder eauto.
+      + split.
+        intros H r1 v. destruct r1. 
+        apply IHϕ. apply H. auto using onSomeEqualsR.
+        destruct v.
+
+        intros H r' v.
+        apply IHϕ. apply H. auto using onSomeEqualsR. 
+      + split.
+        * intros H. simpl evalK. intros r' H1 H2.
+          destruct r'. 
+          apply IHϕ2. apply H.  auto using onSomeEqualsR.
+          apply IHϕ1. auto.
+          destruct H1.
+        * intros H r' c H1.
+          apply IHϕ2.
+          apply H.
+          eauto using onSomeEqualsR.
+          apply IHϕ1. auto.
+  Qed.
+
+  Lemma derivRefl (m: KripkeModel) ϕ: (exists w, ~(@evalK m ϕ w)) -> ~(@evalK (reflectionModel m) (K ϕ) None).
+  Proof.                                 
+    intro.
+    intro.  destruct H. apply H. 
+    apply derivReflSomeIdent. 
+    apply H0. simpl verif. cbv. auto.
+  Qed.   
+
+  Lemma reflectionPreservesIEL (m: KripkeModel):
+    isIEL m -> isIEL (reflectionModel m).
+  Proof.
+    intros H w.
+    destruct w.
+    - specialize (H w). destruct H as [w' Hw']. exists (Some w'). apply Hw'.
+    - exists None. firstorder eauto.
+  Qed.    
+
+  Lemma soundness (Γ: context) (A: form) {D: DerivationType}:
+  nd Γ A -> entails Γ A.
+Proof. 
+  intro. induction H; try firstorder eauto. 
+  - unfold entails. intros M c w H0. unfold evalK.  intros r' H1 H2.  apply IHnd. auto. intros a Ha. destruct Ha; eauto.
+    + subst s. apply H2.
+    + apply eval_monotone with w; eauto.
+  - unfold entails in IHnd1.  intros M c w H1. eapply IHnd1; auto. apply H1.  apply preorderCogn. apply IHnd2.  auto. auto. 
+  -  
+    intros M Mc w H1.
+    intros w' cw Hs. specialize (IHnd M Mc w').   simpl evalK in IHnd.
+    intros w'' wc. apply IHnd with w''; auto.  apply monotone_ctx with w; auto.
+    apply preorderCogn.  
+  - intros M c w H0. intros r H1.  apply eval_monotone with w.  apply vericont.  auto.  apply IHnd.  auto. auto.
+  - intros M c w H2.   specialize (IHnd1 M c w H2).   destruct IHnd1.
+    + eapply IHnd2; auto.  apply H2.  apply preorderCogn. 
+    + eapply IHnd3; eauto. apply preorderCogn.
+  - intros M Mc w H1 u c.
+    apply monotone_ctx with (w' := u)  in H1. 2: auto.
+    unfold isIEL in Mc. destruct (Mc u).   
+    assert (evalK s x).
+    {
+      eapply IHnd; auto.
+      apply H1. auto. 
+    }
+    intro.
+    apply (H3 x).
+    + apply vericont. auto.
+    + apply H2.        
+Qed.    
+
+  Lemma reflectionAdmissible  A : nd [] (K A) -> nd [] A. 
+  Proof.
+    intro.
+    destruct (ielg_dec [] A d); auto.
+    assert (exists (M: KripkeModel) w, ~(@evalK M A w) /\ model_constraint M).  {
+      exists (canonical [] A).
+      assert ([] <<= (U' [] A)) by  auto. 
+      eexists (Lindenbaum H0 n). split. 
+      rewrite truth_lemma. enough (~(nd (T (Lindenbaum H0 n)) A)). {
+        intro. apply H1. apply ndA. auto. 
+      }
+      simpl T. intro.   apply extend_does_not_derive with [] A (U' [] A) in n.  apply n.
+      apply ndW with (rep (extend [] A (U' [] A)) (U' [] A)).  auto.
+      apply rep_equi.  apply extend_locally_subset.  auto.  unfold U'.  simpl scl.
+      apply in_app_iff. left.  apply scl'_in.
+      destruct d eqn:rd; try firstorder. simpl model_constraint.
+      intros w.   
+      pose proof (are_iel_models). rewrite rd in H1.  apply H1.  reflexivity. 
+    }
+    destruct H0 as (M & w & Hmw).
+    enough (exists m w, model_constraint m /\ ~ evalK (K A) w).
+    apply soundness in H. repeat destruct H0.   exfalso. apply H1.
+    apply H. auto.
+    firstorder eauto.
+
+    exists (reflectionModel M).
+    exists None. 
+    split.
+    - destruct d eqn:deq; try firstorder.   simpl model_constraint. apply reflectionPreservesIEL.
+      tauto.
+    -  destruct Hmw.  firstorder eauto using  derivRefl.
+ Qed.       
+End Admissibility.  
