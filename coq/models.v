@@ -83,4 +83,35 @@ Section Models.
     intros. intros t H1.
     apply eval_monotone with (w := w); auto. 
   Qed.
+
 End Models.
+  Lemma soundness (Γ: context) (A: form) {D: DerivationType}:
+    nd Γ A -> entails Γ A.
+  Proof. 
+    intro. induction H; try firstorder eauto. 
+    - unfold entails. intros M' c w H0. unfold evalK.  intros r' H1 H2.  apply IHnd. auto. intros a Ha. destruct Ha; eauto.
+      + subst s. apply H2.
+      + apply eval_monotone with w; eauto.
+    - unfold entails in IHnd1.  intros M c w H1. eapply IHnd1; auto. apply H1.  apply preorderCogn. apply IHnd2.  auto. auto. 
+    -  
+      intros M Mc w H1.
+      intros w' cw Hs. specialize (IHnd M Mc w').   simpl evalK in IHnd.
+      intros w'' wc. apply IHnd with w''; auto.  apply monotone_ctx with w; auto.
+      apply preorderCogn.  
+    - intros M c w H0. intros r H1.  apply eval_monotone with w.  apply vericont.  auto.  apply IHnd.  auto. auto.
+    - intros M c w H2.   specialize (IHnd1 M c w H2).   destruct IHnd1.
+      + eapply IHnd2; auto.  apply H2.  apply preorderCogn. 
+      + eapply IHnd3; eauto. apply preorderCogn.
+    - intros M Mc w H1 u c.
+      apply monotone_ctx with (w' := u)  in H1. 2: auto.
+      unfold isIEL in Mc. destruct (Mc u).   
+      assert (evalK s x).
+      {
+        eapply IHnd; auto.
+        apply H1. auto. 
+      }
+      intro.
+      apply (H3 x).
+      + apply vericont. auto.
+      + apply H2.        
+  Qed.

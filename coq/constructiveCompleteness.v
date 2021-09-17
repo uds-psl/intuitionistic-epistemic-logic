@@ -273,7 +273,7 @@ We first define the relations.
   Qed.   
 
   (** Show completeness for subformulas *)
-  Lemma completeness Ω A: A el U' -> Ω <<= U' -> entails Ω A -> nd Ω A. 
+  Lemma completeness' Ω A: A el U' -> Ω <<= U' -> entails Ω A -> nd Ω A. 
   Proof.
     intros Au U H. apply nd_stable. intro.
     unfold entails in H.
@@ -297,8 +297,6 @@ We first define the relations.
     + apply H1. apply ndA.  auto.
     + rewrite<- truth_lemma in n; auto. apply n.  apply H.  unfold evalK'. intros.  apply truth_lemma.   eauto.  eauto.  
   Qed.   
-
-  Print Assumptions completeness.
 
   (** * Constructive Finite Model Property *)
   Definition finiteModel (M: KripkeModel) := exists (L: list (@world M)), forall (w : (@world M)), exists w', w' el L /\ (cogn w w') /\ (cogn w' w).  
@@ -445,9 +443,9 @@ We first define the relations.
 
 End Canonical. 
 
-Lemma completenessGeneral Ω A (D: DerivationType): entails Ω A -> nd Ω A.
+Lemma completeness Ω A (D: DerivationType): entails Ω A -> nd Ω A.
 Proof.
-  intro. apply completeness with Ω A. unfold U'. apply scl_incl'. auto. intros a Ha. apply scl_incl'. auto. auto.
+  intro. apply completeness' with Ω A. unfold U'. apply scl_incl'. auto. intros a Ha. apply scl_incl'. auto. auto.
 Qed.
 
 Lemma ielHasFmp (D: DerivationType): finiteModelProperty.
@@ -587,36 +585,6 @@ Section Admissibility.
     - exists None. firstorder eauto.
   Qed.    
 
-  Lemma soundness (Γ: context) (A: form) {D: DerivationType}:
-  nd Γ A -> entails Γ A.
-Proof. 
-  intro. induction H; try firstorder eauto. 
-  - unfold entails. intros M c w H0. unfold evalK.  intros r' H1 H2.  apply IHnd. auto. intros a Ha. destruct Ha; eauto.
-    + subst s. apply H2.
-    + apply eval_monotone with w; eauto.
-  - unfold entails in IHnd1.  intros M c w H1. eapply IHnd1; auto. apply H1.  apply preorderCogn. apply IHnd2.  auto. auto. 
-  -  
-    intros M Mc w H1.
-    intros w' cw Hs. specialize (IHnd M Mc w').   simpl evalK in IHnd.
-    intros w'' wc. apply IHnd with w''; auto.  apply monotone_ctx with w; auto.
-    apply preorderCogn.  
-  - intros M c w H0. intros r H1.  apply eval_monotone with w.  apply vericont.  auto.  apply IHnd.  auto. auto.
-  - intros M c w H2.   specialize (IHnd1 M c w H2).   destruct IHnd1.
-    + eapply IHnd2; auto.  apply H2.  apply preorderCogn. 
-    + eapply IHnd3; eauto. apply preorderCogn.
-  - intros M Mc w H1 u c.
-    apply monotone_ctx with (w' := u)  in H1. 2: auto.
-    unfold isIEL in Mc. destruct (Mc u).   
-    assert (evalK s x).
-    {
-      eapply IHnd; auto.
-      apply H1. auto. 
-    }
-    intro.
-    apply (H3 x).
-    + apply vericont. auto.
-    + apply H2.        
-Qed.    
 
   Lemma reflectionAdmissible  A : nd [] (K A) -> nd [] A. 
   Proof.

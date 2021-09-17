@@ -221,7 +221,7 @@ We first define the relations.
   Qed.  
 
 
-    Lemma completeness Ω A: A el U' -> Ω <<= U' -> entails Ω A -> gen Ω A. 
+    Lemma completeness' Ω A: A el U' -> Ω <<= U' -> entails Ω A -> gen Ω A. 
   Proof.
     intros Au U H. destruct (gen_dec Ω A d); auto.  exfalso. 
     unfold entails in H.
@@ -248,46 +248,14 @@ We first define the relations.
       apply truth_lemma.  auto.  auto. 
   Qed.   
 
-  Print Assumptions completeness. 
 End Canonical. 
 
 
-Lemma completenessGeneryl Ω A (D: DerivationType): entails Ω A -> gen Ω A.
+Lemma completeness Ω A (D: DerivationType): entails Ω A -> gen Ω A.
 Proof.
-  intro. apply completeness with Ω A. unfold U'. apply scl_incl'. auto. intros a Ha. apply scl_incl'. auto. auto.
+  intro. apply completeness' with Ω A. unfold U'. apply scl_incl'. auto. intros a Ha. apply scl_incl'. auto. auto.
 Qed.
-Print Assumptions completenessGeneryl. 
 
-Lemma soundness (Γ: context) (A: form) {D: DerivationType}:
-  nd Γ A -> entails Γ A.
-Proof. 
-  intro. induction H; try firstorder eauto. 
-  - unfold entails. intros M c w H0. unfold evalK.  intros r' H1 H2.  apply IHnd. auto. intros a Ha. destruct Ha; eauto.
-    + subst s. apply H2.
-    + apply eval_monotone with w; eauto.
-  - unfold entails in IHnd1.  intros M c w H1. eapply IHnd1; auto. apply H1.  apply preorderCogn. apply IHnd2.  auto. auto. 
-  -  
-    intros M Mc w H1.
-    intros w' cw Hs. specialize (IHnd M Mc w').   simpl evalK in IHnd.
-    intros w'' wc. apply IHnd with w''; auto.  apply monotone_ctx with w; auto.
-    apply preorderCogn.  
-  - intros M c w H0. intros r H1.  apply eval_monotone with w.  apply vericont.  auto.  apply IHnd.  auto. auto.
-  - intros M c w H2.   specialize (IHnd1 M c w H2).   destruct IHnd1.
-    + eapply IHnd2; auto.  apply H2.  apply preorderCogn. 
-    + eapply IHnd3; eauto. apply preorderCogn.
-  - intros M Mc w H1 u c.
-    apply monotone_ctx with (w' := u)  in H1. 2: auto.
-    unfold isIEL in Mc. destruct (Mc u).   
-    assert (evalK s x).
-    {
-      eapply IHnd; auto.
-      apply H1. auto. 
-    }
-    intro.
-    apply (H3 x).
-    + apply vericont. auto.
-    + apply H2.        
-Qed.    
 
 Lemma soundnessGen (Γ: context) (A: form) {D: DerivationType}:
   gen Γ A -> entails Γ A.
@@ -297,22 +265,18 @@ Qed.
 
 (**
    ** Semantic Cut-Elimination 
-gen Γ s -> gen (s::Γ) t ->      gen Γ t 
-|   (Sound)        |
-v                  |
-entails Γ s        |  (Sound) 
-                   ∨
-                entails (s::Γ) t  
-
-To prove (gen Γ t) use completeness -> prove entails Γ t
  **)
 
+Lemma semaCut Γ A (D: DerivationType):
+  nd Γ A -> gen Γ A. 
+Proof.
+  intro. apply soundness in H. apply completeness.  assumption.
+Qed.   
 (** Soundness w.r.t gen used by using nd soundness **)
-Lemma semaCut Γ A B (D: DerivationType):
+Lemma semaCut' Γ A B (D: DerivationType):
   gen Γ A -> gen (A::Γ) B -> gen Γ B.
 Proof.
-  intros H1 % soundnessGen H2 % soundnessGen.
-  apply completenessGeneryl.
-  intros w  c H3 H4. apply H2.  auto.  intros x Hx. destruct Hx; auto. 
-  + subst A.  apply H1; auto.
+  intros H1 % gen2nd H2 % gen2nd.
+  apply semaCut.
+  eauto. 
 Qed.

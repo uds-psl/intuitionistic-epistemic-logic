@@ -311,7 +311,6 @@ Section Completeness.
     destruct D; firstorder eauto.
   Qed.
   
-  Print Assumptions ndSound. 
   Lemma ndConsistent (D: DerivationType): ~(nil ⊢ ⊥).
   Proof.
     intro.
