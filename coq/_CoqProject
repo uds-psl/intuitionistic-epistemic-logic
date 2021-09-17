@@ -10,6 +10,6 @@ decidability.v
 decidabilityK.v
 toolbox.v
 gentree.v
-
+Permutations.v
 constructiveCompleteness.v
 semanticCutElimination.v
