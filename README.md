@@ -31,5 +31,4 @@ A Coqdoc of this project can be found [here](https://www.ps.uni-saarland.de/extr
 * The project uses the uds-psl Base Library.
 * We use a permutation solver which is an improved version of [foreverbell's solver](https://github.com/foreverbell/permutation-solver).
 * The decidability proof are similar to those by [Hai Dang](https://ps.uni-saarland.de/~dang/ri-lab.php).
-* The file `gentree.v` is taken from my ACP Project.
 
