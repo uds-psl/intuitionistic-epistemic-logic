@@ -2,7 +2,6 @@ Require Import nd models.
 Require Import List Lia.
 Require Import Coq.Classes.RelationClasses.
 Require Import Coq.Program.Equality.
-Require Import Coq.Logic.Classical.
 
 (** * Enumerable Strong Completeness *)
 
@@ -26,7 +25,7 @@ Section Models.
   Context {d : DerivationType}.
 
   Definition evalK' {M: KripkeModel} (Γ: theory) :=
-    fun w => forall s, (Γ s) -> @evalK M s w.  
+    fun w => forall s, (Γ s) -> ~ ~ @evalK M s w.  
 
   (** 
     Being an IEL or IEL^- model is a property of a given model.
@@ -49,12 +48,6 @@ Section Models.
       and we can reach world v from w, φ true at v.  *)
   Variable M : KripkeModel. 
 
-  Lemma monotone_ctx (A:theory)  : 
-    forall w w', cogn w w' -> evalK' A w -> evalK' A w'.
-  Proof.
-    intros. intros t H1.
-    apply eval_monotone with (w0 := w); auto. 
-  Qed.
 End Models.
 (** ** Canonical models *)
 Section Canonical.
@@ -151,10 +144,18 @@ Qed.
 
 (** ** Strong Completeness *)
 Section Completeness.
+
+  Hypothesis DNS : forall X (P : X -> Prop), (forall x, ~ ~ P x) -> ~ ~ (forall x, P x).
+
+  Lemma DN_imp (P Q : Prop) :
+    (P -> ~ ~ Q) -> ~ ~ (P -> Q).
+  Proof.
+    tauto.
+  Qed.
   
   (** *** Truth-Lemma *)
   Lemma truth_lemma {d: DerivationType} : forall  (X: form) (t: (@world  canonical)), 
-    (evalK X t) <-> ((T t) X).
+    ~ ~ (evalK X t) <-> ((T t) X).
   Proof.
     intro x.
     induction x.
@@ -171,48 +172,53 @@ Section Completeness.
             - intro. apply ndtA in H1.
               apply does_not_derive in H1; auto. 
           }
-          destruct H1. destruct H1.  apply H2.  apply IHx. auto. 
-          
-          
-      + intros A. simpl evalK. intros r V. apply IHx. auto. 
+          destruct H1. destruct H1.  apply H2.  apply IHx. intuition.
+      + intros H. cbn. apply DNS. intros t'. apply DN_imp. intros H' H''.
+        apply (IHx t'); trivial. now apply H'.
     - split. 
       +
         intro.
         apply deductionGamma. rewrite deductionGamma. apply Tstable.
         intro. 
         enough (exists Δ: mcTheory, (T t) ⊆ (T Δ) /\ ((T Δ) x1) /\ ~((T Δ) x2)). destruct H1 as [Δ H2].
-        specialize (H Δ). destruct H2. destruct H2. apply H3. apply IHx2. (*apply H0.*) firstorder eauto.
-        (*    apply IHx1. exact H2.  *)
+        apply H. cbn. intros H'. specialize (H' Δ). destruct H2. destruct H2. firstorder eauto.
         rewrite<- deductionGamma in H0. rewrite ImpAgree in H0.
         destruct (Lindenbaum H0).
         exists (lindenBaumTheory H0).
-        split. intros x H3. firstorder eauto.  
+        split. intros x H3. apply H1. now right.
         
         split. 
-        * apply deductionGamma. apply ndtW with  (x1#(T t)). apply ndtA. left. reflexivity. unfold lindenBaumTheory. cbn. apply max_subset.
+        * apply deductionGamma. apply ndtW with  (x1#(T t)). apply ndtA. left.
+          reflexivity. unfold lindenBaumTheory. cbn. apply max_subset.
         * rewrite<- deductionGamma. destruct H2. auto.   
-      + intros. intros w H1 H2. apply IHx2. apply deductionGamma. apply ndtIE with (s := x1). apply deductionGamma. apply H1. exact H. apply deductionGamma. apply IHx1. exact H2.
+      + intros. cbn. apply DNS. intros t'. apply DN_imp. intros Ht. apply DN_imp.
+        intros H'. apply IHx2. apply deductionGamma. apply ndtIE with (s := x1). apply deductionGamma. apply Ht, H.
+        apply deductionGamma. apply IHx1. tauto.
     - split.     
       + intro H.
-        destruct H.
         apply deductionGamma. 
         apply ndtCI; apply ndtA.
-        * apply IHx1. exact H.
-        *  apply IHx2. exact H0.  
-      + intros H1.  split.
-        * apply deductionGamma in H1.  apply ndtCEL in H1. apply IHx1. 
-          apply deductionGamma.  auto.
-        * apply deductionGamma in H1.  apply ndtCER in H1. apply IHx2. 
-          apply deductionGamma.  auto.
-    - intro.  simpl evalK. rewrite world_canonical_disjunction. rewrite IHx1. rewrite IHx2.
-      repeat rewrite deductionGamma. tauto.
+        * apply IHx1. intuition.
+        * apply IHx2. intuition.
+      + intros H1 % deductionGamma H2.
+        assert (HL : T t x1) by now apply deductionGamma, (ndtCEL H1).
+        assert (HR : T t x2) by now apply deductionGamma, (ndtCER H1).
+        apply (IHx1 t); trivial. intros H. apply (IHx2 t); trivial. intros H'. 
+        apply H2. cbn. split; trivial.
+    - intro. simpl evalK. rewrite world_canonical_disjunction.
+      repeat rewrite deductionGamma. rewrite <- IHx1. rewrite <- IHx2. tauto.
       
     - split.
-      + 
-        intro. exfalso. apply H.
+      + cbn. tauto. 
       + intro.  exfalso. apply (Tconsistent H). 
-    - split; firstorder. 
+    - split; intros H.
+      + apply Tstable. apply H.
+      + intros H'. apply H', H.
   Qed.
+
+  (*Lemma truth_lemma_list {d: DerivationType} : forall  (X: form) (t: (@world  canonical)) Gamma Delta, 
+    ~ ~ (evalK' Gamma Delta) <-> ((T t) X).
+  Proof.*)
 
   Lemma StrongQuasiCompleteness {d: DerivationType} (Γ: theory) (φ: form): 
     (entails Γ φ) -> ~ ~ Γ ⊢T φ.
@@ -231,7 +237,7 @@ Section Completeness.
     specialize (H0 H1 Δ).
     apply H2.
     apply deductionGamma.
-    apply truth_lemma. auto. 
+    apply truth_lemma. intros H'. apply H'.
     apply H0. intros ψ P. apply truth_lemma. auto.  apply deductionGamma. destruct H2. apply ndtA.
     apply H3. exact P. 
     (* Show that such a theory exists *)
