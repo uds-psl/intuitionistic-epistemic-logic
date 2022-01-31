@@ -25,7 +25,7 @@ Section Models.
   Context {d : DerivationType}.
 
   Definition evalK' {M: KripkeModel} (Γ: theory) :=
-    fun w => forall s, (Γ s) -> ~ ~ @evalK M s w.  
+    fun w => forall s, (Γ s) -> @evalK M s w.  
 
   (** 
     Being an IEL or IEL^- model is a property of a given model.
@@ -147,6 +147,11 @@ Section Completeness.
 
   Hypothesis DNS : forall X (P : X -> Prop), (forall x, ~ ~ P x) -> ~ ~ (forall x, P x).
 
+  Lemma DNS' : forall X (P : X -> Prop), ~ ~ (forall x, P x) -> (forall x, ~ ~ P x).
+  Proof.
+    intros. intuition.
+  Qed.
+
   Lemma DN_imp (P Q : Prop) :
     (P -> ~ ~ Q) -> ~ ~ (P -> Q).
   Proof.
@@ -237,9 +242,10 @@ Section Completeness.
     specialize (H0 H1 Δ).
     apply H2.
     apply deductionGamma.
-    apply truth_lemma. intros H'. apply H'.
-    apply H0. intros ψ P. apply truth_lemma. auto.  apply deductionGamma. destruct H2. apply ndtA.
-    apply H3. exact P. 
+    apply truth_lemma. intros H'.
+    assert (HD : ~ ~ @evalK' canonical Γ Δ).
+    { apply DNS. intros psi. apply DN_imp. intros H''. apply truth_lemma. now apply H2. }
+    apply HD. intros HD'. apply H'. now apply H0.
     (* Show that such a theory exists *)
     exists (lindenBaumTheory H).
     split.
