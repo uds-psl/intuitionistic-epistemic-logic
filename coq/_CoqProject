@@ -15,3 +15,6 @@ gentree.v
 Permutations.v
 constructiveCompleteness.v
 semanticCutElimination.v
+completenessK.v
+kt.v
+kd.v
