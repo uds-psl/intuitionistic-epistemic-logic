@@ -354,21 +354,40 @@ Section WLEM.
   Let TP phi :=
     phi = Or (Var 0) (Neg (Var 0)) \/ P /\ phi = Var 0 \/ ~ P /\ phi = Neg (Var 0).
 
+  Instance trivial_model (Q : Prop) :
+    KripkeModel.
+  Proof.
+    unshelve eapply mkKripkeModel.
+    - exact unit.
+    - exact (fun _ _ => True).
+    - exact (fun _ _ => True).
+    - exact (fun _ _ => P).
+    - split; auto.
+    - cbn. trivial.
+    - intuition.
+    - cbn. trivial.
+  Defined.
+
+  Lemma trivial_model_constraint Q :
+    model_constraint D (trivial_model Q).
+  Proof.
+    destruct D; cbn; trivial. intros w. exists w. cbn. trivial.
+  Qed.
+
   Theorem WLEM : 
     ~ P \/ ~ ~ P.
   Proof.
     destruct (@all_T_satis TP Bot) as [M[w[HM _]]].
-    - intros H. assert (HP : ~ ~ (P \/ ~ P)) by tauto.
-      apply HP. clear HP. intros [HP|HP].
-      + admit.
-      + admit.
+    - intros [A[H1 H2]]. assert (HP : ~ ~ (P \/ ~ P)) by tauto. apply HP. intros HP'.
+      apply (@soundness _ _ _ H2 _ (trivial_model_constraint P) tt).
+      intros phi H % H1. destruct H as [->|[[H ->]|[H ->]]]; cbn; tauto.
     - destruct (HM (Or (Var 0) (Neg (Var 0)))) as [H|H].
       + now left.
       + right. intros HP. assert (HTP : TP (Neg (Var 0))) by (unfold TP; tauto).
         apply (HM (Neg (Var 0)) HTP w); try apply preorderCogn. apply H.
       + left. intros HP. apply (H w); try apply preorderCogn.
         assert (HTP : TP (Var 0)) by (unfold TP; tauto). apply (HM (Var 0) HTP).
-  Admitted.
+  Qed.
 
 End WLEM.
 
