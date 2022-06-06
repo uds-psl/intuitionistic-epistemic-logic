@@ -145,8 +145,6 @@ Qed.
 (** ** Strong Completeness *)
 Section Completeness.
 
-  Hypothesis DNS : forall X (P : X -> Prop), (forall x, ~ ~ P x) -> ~ ~ (forall x, P x).
-
   Lemma DNS' : forall X (P : X -> Prop), ~ ~ (forall x, P x) -> (forall x, ~ ~ P x).
   Proof.
     intros. intuition.
@@ -157,6 +155,8 @@ Section Completeness.
   Proof.
     tauto.
   Qed.
+
+  Hypothesis DNS : forall X (P : X -> Prop), (forall x, ~ ~ P x) -> ~ ~ (forall x, P x).
   
   (** *** Truth-Lemma *)
   Lemma truth_lemma {d: DerivationType} : forall  (X: form) (t: (@world  canonical)), 
@@ -225,32 +225,174 @@ Section Completeness.
     ~ ~ (evalK' Gamma Delta) <-> ((T t) X).
   Proof.*)
 
+  Lemma StrongQuasiModelExistence' {d: DerivationType} (Gamma: theory) (phi: form): 
+    ~ Gamma ⊢T phi -> exists w : @world canonical, ~ ~ evalK' Gamma w /\ ~ evalK phi w.
+  Proof.
+    intros H. exists (lindenBaumTheory H). split.
+    - apply DNS. intros psi. apply DN_imp. intros H'.
+      apply truth_lemma. cbn. now apply max_subset.
+    - intros H'. apply (does_not_derive H). apply ndtA.
+      change (T (lindenBaumTheory H) phi). now apply truth_lemma.
+  Qed.
+
+  Lemma StrongQuasiModelExistence {d: DerivationType} (Gamma: theory) (phi: form): 
+    ~ Gamma ⊢T phi -> exists M (w : @world M), ~ ~ evalK' Gamma w /\ ~ evalK phi w.
+  Proof.
+    intros H. exists canonical. now apply StrongQuasiModelExistence'.
+  Qed.
+
   Lemma StrongQuasiCompleteness {d: DerivationType} (Γ: theory) (φ: form): 
     (entails Γ φ) -> ~ ~ Γ ⊢T φ.
   Proof.
-    intros H0.
-    intro H.
-    unfold entails in H0.
-    specialize (H0 canonical).
-    enough (exists Δ: mcTheory, ~((T Δ) ⊢T φ) /\ (Γ ⊆ (T Δ))).
-    destruct H1 as [Δ H2].
-    assert (model_constraint d canonical).  {
-      destruct d eqn:deq.
-      - simpl. auto.
-      - apply canonicalIEL.
-    }
-    specialize (H0 H1 Δ).
-    apply H2.
-    apply deductionGamma.
-    apply truth_lemma. intros H'.
-    assert (HD : ~ ~ @evalK' canonical Γ Δ).
-    { apply DNS. intros psi. apply DN_imp. intros H''. apply truth_lemma. now apply H2. }
-    apply HD. intros HD'. apply H'. now apply H0.
-    (* Show that such a theory exists *)
-    exists (lindenBaumTheory H).
-    split.
-    apply does_not_derive. exact H.
-    apply max_subset.
+    intros H1 H2. destruct (StrongQuasiModelExistence' H2) as [w[Hw1 Hw2]].
+    apply Hw1. intros Hw1'. apply Hw2. apply H1; try apply Hw1'.
+    destruct d eqn:deq; cbn; trivial. apply canonicalIEL.
+  Qed.
+  
+  Hypothesis WLEM : forall P, ~ P \/ ~ ~ P.
+
+  Lemma WLEM_truth_lemma {d: DerivationType} : forall (X: form) (t: (@world  canonical)), 
+    (evalK X t) <-> (T t) X.
+  Proof.
+    intro x.
+     induction x.
+     - split.
+       + intro H0. apply Tstable. intro H'.
+         assert (H: ~ unbox (T t) ⊢T x).
+         * intros H. now apply H', deductionGamma, modalShiftingLemma.
+         * assert (exists Δ: mcTheory , (unbox (T t)) ⊆ (T Δ)
+                                   /\ ~((T Δ) x)).
+           {  
+             exists (lindenBaumTheory H).
+             split.
+             - apply max_subset.
+             - intro. apply ndtA in H1.
+               apply does_not_derive in H1; auto. 
+           }
+           destruct H1. destruct H1.  apply H2.  apply IHx. auto. 
+
+
+       + intros A. simpl evalK. intros r V. apply IHx. auto. 
+     - split. 
+       +
+         intro.
+         apply deductionGamma. rewrite deductionGamma. apply Tstable.
+         intro. 
+         enough (exists Δ: mcTheory, (T t) ⊆ (T Δ) /\ ((T Δ) x1) /\ ~((T Δ) x2)). destruct H1 as [Δ H2].
+         specialize (H Δ). destruct H2. destruct H2. apply H3. apply IHx2. (*apply H0.*) firstorder eauto.
+         (*    apply IHx1. exact H2.  *)
+         rewrite<- deductionGamma in H0. rewrite ImpAgree in H0.
+         destruct (Lindenbaum H0).
+         exists (lindenBaumTheory H0).
+         split. intros x H3. firstorder eauto.  
+
+         split. 
+         * apply deductionGamma. apply ndtW with  (x1#(T t)). apply ndtA. left. reflexivity. unfold lindenBaumTheory. cbn. apply max_subset.
+         * rewrite<- deductionGamma. destruct H2. auto.   
+       + intros. intros w H1 H2. apply IHx2. apply deductionGamma. apply ndtIE with (s := x1). apply deductionGamma. apply H1. exact H. apply deductionGamma. apply IHx1. exact H2.
+     - split.     
+       + intro H.
+         destruct H.
+         apply deductionGamma. 
+         apply ndtCI; apply ndtA.
+         * apply IHx1. exact H.
+         *  apply IHx2. exact H0.  
+       + intros H1.  split.
+         * apply deductionGamma in H1.  apply ndtCEL in H1. apply IHx1. 
+           apply deductionGamma.  auto.
+         * apply deductionGamma in H1.  apply ndtCER in H1. apply IHx2. 
+           apply deductionGamma.  auto.
+     - intro.  simpl evalK. rewrite world_canonical_disjunction. rewrite IHx1. rewrite IHx2.
+       repeat rewrite deductionGamma. split; try tauto.
+       destruct (WLEM (T t x1)) as [H1|H1].
+       + intros H'. right. apply Tstable. tauto.
+       + left. apply Tstable. tauto.
+     - split.
+       + 
+         intro. exfalso. apply H.
+       + intro.  exfalso. apply (Tconsistent H). 
+     - split; firstorder.
+  Qed.
+
+  Lemma WLEMStrongQuasiModelExistence' {d: DerivationType} (Gamma: theory) (phi: form): 
+    ~ Gamma ⊢T phi -> exists w : @world canonical, evalK' Gamma w /\ ~ evalK phi w.
+  Proof.
+    intros H. exists (lindenBaumTheory H). split.
+    - intros psi H'. apply WLEM_truth_lemma. cbn. now apply max_subset.
+    - intros H'. apply (does_not_derive H). apply ndtA.
+      change (T (lindenBaumTheory H) phi). now apply truth_lemma.
+  Qed.
+
+  Lemma WLEMStrongQuasiModelExistence {d: DerivationType} (Gamma: theory) (phi: form): 
+    ~ Gamma ⊢T phi -> exists M (w : @world M), evalK' Gamma w /\ ~ evalK phi w.
+  Proof.
+    intros H. exists canonical. now apply WLEMStrongQuasiModelExistence'.
   Qed.
 
 End Completeness.
+
+Definition Neg phi :=
+    Imp phi Bot.
+
+Section WLEM.
+
+  Context {D : DerivationType}.
+
+  Hypothesis all_T_satis : forall (T : form -> Prop) (phi : form), ~ T ⊢T phi
+                           -> exists (M : KripkeModel) w, evalK' T w /\ ~ evalK phi w.
+
+  Variable P : Prop.
+
+  Let TP phi :=
+    phi = Or (Var 0) (Neg (Var 0)) \/ P /\ phi = Var 0 \/ ~ P /\ phi = Neg (Var 0).
+
+  Theorem WLEM : 
+    ~ P \/ ~ ~ P.
+  Proof.
+    destruct (@all_T_satis TP Bot) as [M[w[HM _]]].
+    - intros H. assert (HP : ~ ~ (P \/ ~ P)) by tauto.
+      apply HP. clear HP. intros [HP|HP].
+      + admit.
+      + admit.
+    - destruct (HM (Or (Var 0) (Neg (Var 0)))) as [H|H].
+      + now left.
+      + right. intros HP. assert (HTP : TP (Neg (Var 0))) by (unfold TP; tauto).
+        apply (HM (Neg (Var 0)) HTP w); try apply preorderCogn. apply H.
+      + left. intros HP. apply (H w); try apply preorderCogn.
+        assert (HTP : TP (Var 0)) by (unfold TP; tauto). apply (HM (Var 0) HTP).
+  Admitted.
+
+End WLEM.
+
+Section WDNS.
+
+  Context {D : DerivationType}.
+
+  Hypothesis all_T_satis : forall (T : form -> Prop) (phi : form), ~ T ⊢T phi
+                           -> exists (M : KripkeModel) w, ~ ~ evalK' T w /\ ~ evalK phi w.
+
+  Variable p : nat -> Prop.
+
+  Let TP phi :=
+    exists n, phi = Or (Var n) (Neg (Var n)) \/ p n /\ phi = Var n \/ ~ p n /\ phi = Neg (Var n).
+
+  Theorem WDNS : 
+    ~ ~ (forall n, ~ p n \/ ~ ~ p n).
+  Proof.
+    intros dns.
+    destruct (@all_T_satis TP Bot) as [M[w[HM _]]].
+    - intros H. admit.
+    - apply HM. intros HM'. apply dns. intros n.
+      destruct (HM' (Or (Var n) (Neg (Var n)))) as [H|H].
+      + exists n. now left.
+      + right. intros HP. assert (HTP : TP (Neg (Var n))) by (exists n; tauto).
+        apply (HM' (Neg (Var n)) HTP w); try apply preorderCogn. apply H.
+      + left. intros HP. apply (H w); try apply preorderCogn.
+        assert (HTP : TP (Var n)) by (exists n; tauto). apply (HM' (Var n) HTP).
+  Admitted.
+
+End WDNS.
+      
+      
+      
+                                                        
