@@ -329,6 +329,14 @@ Section Completeness.
     intros H. exists canonical. now apply WLEMStrongQuasiModelExistence'.
   Qed.
 
+  Lemma WLEMStrongQuasiCompleteness {d: DerivationType} (Γ: theory) (φ: form): 
+    (entails Γ φ) -> ~ ~ Γ ⊢T φ.
+  Proof.
+    intros H1 H2. destruct (WLEMStrongQuasiModelExistence' H2) as [w[Hw1 Hw2]].
+    apply Hw2. apply H1; try apply Hw1.
+    destruct d eqn:deq; cbn; trivial. apply canonicalIEL.
+  Qed.
+
 End Completeness.
 
 Definition Neg phi :=
