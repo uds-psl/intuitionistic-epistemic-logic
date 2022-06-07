@@ -354,7 +354,7 @@ Section WLEM.
   Let TP phi :=
     phi = Or (Var 0) (Neg (Var 0)) \/ P /\ phi = Var 0 \/ ~ P /\ phi = Neg (Var 0).
 
-  Instance trivial_model (Q : Prop) :
+  Instance trivial_model :
     KripkeModel.
   Proof.
     unshelve eapply mkKripkeModel.
@@ -368,8 +368,8 @@ Section WLEM.
     - cbn. trivial.
   Defined.
 
-  Lemma trivial_model_constraint Q :
-    model_constraint D (trivial_model Q).
+  Lemma trivial_model_constraint :
+    model_constraint D trivial_model.
   Proof.
     destruct D; cbn; trivial. intros w. exists w. cbn. trivial.
   Qed.
@@ -379,7 +379,7 @@ Section WLEM.
   Proof.
     destruct (@all_T_satis TP Bot) as [M[w[HM _]]].
     - intros [A[H1 H2]]. assert (HP : ~ ~ (P \/ ~ P)) by tauto. apply HP. intros HP'.
-      apply (@soundness _ _ _ H2 _ (trivial_model_constraint P) tt).
+      apply (@soundness _ _ _ H2 _ trivial_model_constraint tt).
       intros phi H % H1. destruct H as [->|[[H ->]|[H ->]]]; cbn; tauto.
     - destruct (HM (Or (Var 0) (Neg (Var 0)))) as [H|H].
       + now left.
@@ -403,12 +403,44 @@ Section WDNS.
   Let TP phi :=
     exists n, phi = Or (Var n) (Neg (Var n)) \/ p n /\ phi = Var n \/ ~ p n /\ phi = Neg (Var n).
 
+  Instance pointwise_model :
+    KripkeModel.
+  Proof.
+    unshelve eapply mkKripkeModel.
+    - exact unit.
+    - exact (fun _ _ => True).
+    - exact (fun _ _ => True).
+    - exact (fun _ n => p n).
+    - split; auto.
+    - cbn. trivial.
+    - intuition.
+    - cbn. trivial.
+  Defined.
+
+  Lemma pointwise_model_constraint :
+    model_constraint D pointwise_model.
+  Proof.
+    destruct D; cbn; trivial. intros w. exists w. cbn. trivial.
+  Qed.
+
+  Lemma pointwise_model_TP A :
+    (forall phi, In phi A -> TP phi) -> ~ ~ models.evalK' A tt.
+  Proof.
+    intros HA. induction A; intros H.
+    - apply H. intros phi [].
+    - apply IHA; auto. intros H'. destruct (HA a) as [n Hn]; auto.
+      assert (Hp : ~ ~ (p n \/ ~ p n)) by tauto. apply Hp. intros Hp'.
+      apply H. intros phi [<-| HP]; try now apply H'.
+      destruct Hn as [->|[[Ha ->]|[Ha ->]]]; cbn; tauto.
+  Qed.
+
   Theorem WDNS : 
     ~ ~ (forall n, ~ p n \/ ~ ~ p n).
   Proof.
     intros dns.
     destruct (@all_T_satis TP Bot) as [M[w[HM _]]].
-    - intros H. admit.
+    - intros [A[H1 H2]]. apply (pointwise_model_TP H1). intros HA.
+      now apply (@soundness _ _ _ H2 _ pointwise_model_constraint tt).
     - apply HM. intros HM'. apply dns. intros n.
       destruct (HM' (Or (Var n) (Neg (Var n)))) as [H|H].
       + exists n. now left.
@@ -416,7 +448,7 @@ Section WDNS.
         apply (HM' (Neg (Var n)) HTP w); try apply preorderCogn. apply H.
       + left. intros HP. apply (H w); try apply preorderCogn.
         assert (HTP : TP (Var n)) by (exists n; tauto). apply (HM' (Var n) HTP).
-  Admitted.
+  Qed.
 
 End WDNS.
       
