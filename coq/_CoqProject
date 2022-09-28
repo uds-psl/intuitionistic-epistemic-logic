@@ -6,6 +6,7 @@ forms.v
 nd.v 
 models.v
 modelsClassicalCompleteness.v
+modelsMPCompleteness.v
 decidability.v
 structuralProperties.v
 permutationSCforK.v
