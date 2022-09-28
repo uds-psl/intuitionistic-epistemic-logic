@@ -1,3 +1,11 @@
+Lemma demorgan_dn P :
+  (forall X (p : X -> Prop), ~ (forall x, ~ p x) -> exists x, p x) -> ~ ~ P -> P.
+Proof.
+  intros DM HP. destruct (@DM P (fun _ => True)).
+  - intros H. tauto.
+  - exact x.
+Qed.
+
 Require Import nd models.
 Require Import List Lia.
 Require Import Coq.Classes.RelationClasses.
@@ -221,6 +229,70 @@ Section Completeness.
       + intros H'. apply H', H.
   Qed.
 
+  Hypothesis WDNS : ~ ~ forall P, ~ P \/ ~ ~ P.
+
+  Lemma truth_lemma' {d: DerivationType} : forall  (X: form) (t: (@world  canonical)), 
+    (evalK X t -> T t X) /\ (T t X -> ~ ~ evalK X t).
+  Proof.
+    intro x.
+    induction x.
+    - split.
+      + intro H0. apply Tstable. intro H'.
+        assert (H: ~ unbox (T t) ⊢T x).
+        * intros H. now apply H', deductionGamma, modalShiftingLemma.
+        * assert (exists Δ: mcTheory , (unbox (T t)) ⊆ (T Δ)
+                                  /\ ~((T Δ) x)).
+          {  
+            exists (lindenBaumTheory H).
+            split.
+            - apply max_subset.
+            - intro. apply ndtA in H1.
+              apply does_not_derive in H1; auto. 
+          }
+          destruct H1. destruct H1.  apply H2.  apply IHx. intuition.
+      + intros H. cbn. intros H'. apply WDNS. intros WDNS'.
+        admit.
+    - split. 
+      +
+        intro.
+        apply deductionGamma. rewrite deductionGamma. apply Tstable.
+        intro. 
+        enough (exists Δ: mcTheory, (T t) ⊆ (T Δ) /\ ((T Δ) x1) /\ ~((T Δ) x2)). destruct H1 as [Δ H2].
+        apply H0. cbn. destruct H2. destruct H2. firstorder eauto.
+        rewrite<- deductionGamma in H0. rewrite ImpAgree in H0.
+        destruct (Lindenbaum H0).
+        exists (lindenBaumTheory H0).
+        split. intros x H3. apply H1. now right.
+        
+        split. 
+        * apply deductionGamma. apply ndtW with  (x1#(T t)). apply ndtA. left.
+          reflexivity. unfold lindenBaumTheory. cbn. apply max_subset.
+        * rewrite<- deductionGamma. destruct H2. auto.   
+      + intros. cbn. apply DNS. intros t'. apply DN_imp. intros Ht. apply DN_imp.
+        intros H'. apply IHx2. apply deductionGamma. apply ndtIE with (s := x1). apply deductionGamma. apply Ht, H.
+        apply deductionGamma. apply IHx1. tauto.
+    - split.     
+      + intro H.
+        apply deductionGamma. 
+        apply ndtCI; apply ndtA.
+        * apply IHx1. intuition.
+        * apply IHx2. intuition.
+      + intros H1 % deductionGamma H2.
+        assert (HL : T t x1) by now apply deductionGamma, (ndtCEL H1).
+        assert (HR : T t x2) by now apply deductionGamma, (ndtCER H1).
+        apply (IHx1 t); trivial. intros H. apply (IHx2 t); trivial. intros H'. 
+        apply H2. cbn. split; trivial.
+    - intro. simpl evalK. rewrite world_canonical_disjunction.
+      repeat rewrite deductionGamma. firstorder.
+      
+    - split.
+      + cbn. tauto. 
+      + intro.  exfalso. apply (Tconsistent H). 
+    - split; intros H.
+      + apply H.
+      + intros H'. apply H', H.
+  Admitted.
+
   (*Lemma truth_lemma_list {d: DerivationType} : forall  (X: form) (t: (@world  canonical)) Gamma Delta, 
     ~ ~ (evalK' Gamma Delta) <-> ((T t) X).
   Proof.*)
@@ -284,7 +356,7 @@ Section Completeness.
          rewrite<- deductionGamma in H0. rewrite ImpAgree in H0.
          destruct (Lindenbaum H0).
          exists (lindenBaumTheory H0).
-         split. intros x H3. firstorder eauto.  
+         split. intros x H3. clear WDNS. firstorder eauto.  
 
          split. 
          * apply deductionGamma. apply ndtW with  (x1#(T t)). apply ndtA. left. reflexivity. unfold lindenBaumTheory. cbn. apply max_subset.
@@ -346,13 +418,208 @@ Section WLEM.
 
   Context {D : DerivationType}.
 
-  Hypothesis all_T_satis : forall (T : form -> Prop) (phi : form), ~ T ⊢T phi
-                           -> exists (M : KripkeModel) w, evalK' T w /\ ~ evalK phi w.
-
   Variable P : Prop.
 
   Let TP phi :=
     phi = Or (Var 0) (Neg (Var 0)) \/ P /\ phi = Var 0 \/ ~ P /\ phi = Neg (Var 0).
+
+  Instance trivial_model :
+    KripkeModel.
+  Proof.
+    unshelve eapply mkKripkeModel.
+    - exact unit.
+    - exact (fun _ _ => True).
+    - exact (fun _ _ => True).
+    - exact (fun _ _ => P).
+    - split; auto.
+    - cbn. trivial.
+    - intuition.
+    - cbn. trivial.
+  Defined.
+
+  Lemma trivial_model_constraint :
+    model_constraint D trivial_model.
+  Proof.
+    destruct D; cbn; trivial. intros w. exists w. cbn. trivial.
+  Qed.
+
+  Lemma TP_consistent :
+    ~ TP ⊢T ⊥.
+  Proof.
+    intros [A[H1 H2]]. assert (HP : ~ ~ (P \/ ~ P)) by tauto. apply HP. intros HP'.
+    apply (@soundness _ _ _ H2 _ trivial_model_constraint tt).
+    intros phi H % H1. destruct H as [->|[[H ->]|[H ->]]]; cbn; tauto.
+  Qed.
+
+  Hypothesis all_T_satis : forall (T : form -> Prop) (phi : form), ~ T ⊢T phi
+                           -> exists (M : KripkeModel) w, evalK' T w /\ ~ evalK phi w.
+
+  Theorem WLEM : 
+    ~ P \/ ~ ~ P.
+  Proof.
+    destruct (@all_T_satis TP Bot) as [M[w[HM _]]].
+    - apply TP_consistent.
+    - destruct (HM (Or (Var 0) (Neg (Var 0)))) as [H|H].
+      + now left.
+      + right. intros HP. assert (HTP : TP (Neg (Var 0))) by (unfold TP; tauto).
+        apply (HM (Neg (Var 0)) HTP w); try apply preorderCogn. apply H.
+      + left. intros HP. apply (H w); try apply preorderCogn.
+        assert (HTP : TP (Var 0)) by (unfold TP; tauto). apply (HM (Var 0) HTP).
+  Qed.
+
+End WLEM.
+
+Definition prime (T : form -> Prop) :=
+  forall phi psi, T (Or phi psi) -> T phi \/ T psi.
+
+Definition quasi_prime (T : form -> Prop) :=
+  forall phi psi, T (Or phi psi) -> ~ ~ (T phi \/ T psi).
+
+Lemma WLEM_prime {D : DerivationType} T :
+  (forall P, ~ P \/ ~ ~ P) -> stable T -> quasi_prime T -> prime T.
+Proof.
+  intros wlem H1 H2 phi psi Hp. destruct (wlem (T phi)) as [H|H].
+  - right. apply H1. intros H'. apply H2 in Hp. apply Hp. tauto.
+  - left. apply H1, H.
+Qed.
+
+Lemma WLEM_prime_back {D : DerivationType} :
+  (forall T, stable T -> quasi_prime T -> prime T) -> forall P, ~ P \/ ~ ~ P.
+Proof.
+  intros HT P. edestruct (HT (T (lindenBaumTheory (@TP_consistent _ P)))).
+  - apply Lindenbaum_stable, TP_consistent.
+  - intros phi psi H % ndtA H'. eapply Tprime. intros HT'. apply HT' in H as [H|H].
+    all: apply H'. 1: left. 2: right. all: now apply Ttheory.
+  - apply max_subset. left. reflexivity.
+  - right. intros HP. eapply Tconsistent. apply Ttheory. eapply ndtIE; try apply ndtA, H.
+    apply ndtA. eapply max_subset. right. right. tauto.
+  - left. intros HP. eapply Tconsistent. apply Ttheory. eapply ndtIE; try apply ndtA, H.
+    apply ndtA. eapply max_subset. right. left. tauto.
+Qed.
+
+Section WDNS.
+
+  Context {D : DerivationType}.
+
+  Variable p : nat -> Prop.
+
+  Let TP phi :=
+    exists n, phi = Or (Var n) (Neg (Var n)) \/ p n /\ phi = Var n \/ ~ p n /\ phi = Neg (Var n).
+
+  Instance pointwise_model :
+    KripkeModel.
+  Proof.
+    unshelve eapply mkKripkeModel.
+    - exact unit.
+    - exact (fun _ _ => True).
+    - exact (fun _ _ => True).
+    - exact (fun _ n => p n).
+    - split; auto.
+    - cbn. trivial.
+    - intuition.
+    - cbn. trivial.
+  Defined.
+
+  Lemma pointwise_model_constraint :
+    model_constraint D pointwise_model.
+  Proof.
+    destruct D; cbn; trivial. intros w. exists w. cbn. trivial.
+  Qed.
+
+  Lemma pointwise_model_TP A :
+    (forall phi, In phi A -> TP phi) -> ~ ~ models.evalK' A tt.
+  Proof.
+    intros HA. induction A; intros H.
+    - apply H. intros phi [].
+    - apply IHA; auto. intros H'. destruct (HA a) as [n Hn]; auto.
+      assert (Hp : ~ ~ (p n \/ ~ p n)) by tauto. apply Hp. intros Hp'.
+      apply H. intros phi [<-| HP]; try now apply H'.
+      destruct Hn as [->|[[Ha ->]|[Ha ->]]]; cbn; tauto.
+  Qed.
+
+  Hypothesis all_T_satis : forall (T : form -> Prop) (phi : form), ~ T ⊢T phi
+                           -> ~ ~ exists (M : KripkeModel) w, ~ ~ evalK' T w /\ ~ evalK phi w.
+
+  Theorem WDNS : 
+    ~ ~ (forall n, ~ p n \/ ~ ~ p n).
+  Proof.
+    intros dns. apply (@all_T_satis TP Bot); try intros [M[w[HM _]]].
+    - intros [A[H1 H2]]. apply (pointwise_model_TP H1). intros HA.
+      now apply (@soundness _ _ _ H2 _ pointwise_model_constraint tt).
+    - apply HM. intros HM'. apply dns. intros n.
+      destruct (HM' (Or (Var n) (Neg (Var n)))) as [H|H].
+      + exists n. now left.
+      + right. intros HP. assert (HTP : TP (Neg (Var n))) by (exists n; tauto).
+        apply (HM' (Neg (Var n)) HTP w); try apply preorderCogn. apply H.
+      + left. intros HP. apply (H w); try apply preorderCogn.
+        assert (HTP : TP (Var n)) by (exists n; tauto). apply (HM' (Var n) HTP).
+  Qed.
+
+  Hypothesis quasi_complete :
+    forall (T : form -> Prop) (phi : form), (forall (M : KripkeModel) w, evalK' T w -> evalK phi w) -> ~ ~ T ⊢T phi.
+
+  Theorem WDNS' : 
+    ~ ~ (forall n, ~ p n \/ ~ ~ p n).
+  Proof.
+    intros dns. apply (@quasi_complete TP Bot); try intros [M[w[HM _]]].
+    - intros M w HM. apply dns. intros n.
+      destruct (HM (Or (Var n) (Neg (Var n)))) as [H|H].
+      + exists n. now left.
+      + right. intros HP. assert (HTP : TP (Neg (Var n))) by (exists n; tauto).
+        apply (HM (Neg (Var n)) HTP w); try apply preorderCogn. apply H.
+      + left. intros HP. apply (H w); try apply preorderCogn.
+        assert (HTP : TP (Var n)) by (exists n; tauto). apply (HM (Var n) HTP).
+    - intros [A[H1 H2]]. apply (pointwise_model_TP H1). intros HA.
+      now apply (@soundness _ _ _ H2 _ pointwise_model_constraint tt).
+  Qed.
+
+End WDNS.
+
+
+Definition quasi_model_existence {D : DerivationType} :=
+  forall (T : form -> Prop) (phi : form), ~ T ⊢T phi -> ~ ~ exists (M : KripkeModel) w, evalK' T w /\ ~ evalK phi w.
+
+Definition quasi_completeness {D : DerivationType} :=
+  forall (T : form -> Prop) (phi : form), (forall (M : KripkeModel) w, evalK' T w -> ~ ~ evalK phi w) -> ~ ~ T ⊢T phi.
+
+Lemma model_existence_to_completeness {D : DerivationType} :
+  quasi_model_existence <-> quasi_completeness.
+Proof.
+  split; intros H1 T phi H2 H3.
+  - apply (H1 T phi H3). intros [M[w[H H']]]. firstorder.
+  - apply (H1 T phi); try apply H2. firstorder.
+Qed.
+
+Definition quasi_model_existence' {D : DerivationType} :=
+  forall (T : form -> Prop) (phi : form), ~ T ⊢T phi -> ~ ~ exists (M : KripkeModel) w, ~ ~ evalK' T w /\ ~ evalK phi w.
+
+Definition quasi_completeness' {D : DerivationType} :=
+  forall (T : form -> Prop) (phi : form), (forall (M : KripkeModel) w, evalK' T w -> evalK phi w) -> ~ ~ T ⊢T phi.
+
+Lemma model_existence_to_completeness' {D : DerivationType} :
+  quasi_model_existence' -> quasi_completeness'.
+Proof.
+  intros H1 T phi H2 H3. apply (H1 T phi H3). intros [M[w[H H']]]. firstorder.
+Qed.
+
+Lemma WDNS_equiv :
+  (~ ~ (forall P, ~ P \/ ~ ~ P) -> (forall p : nat -> Prop, ~ ~ (forall n, ~ p n \/ ~ ~ p n))).
+Proof.
+  intros H1 H2 H. apply H1. intros H'. apply H. intros n. apply H'.
+Qed.
+
+
+Section WLEM.
+
+  Context {D : DerivationType}.
+
+  Hypothesis all_T_satis : forall (T : form -> Prop) (phi : form), ~ T ⊢T phi
+                           -> exists (M : KripkeModel) w, evalK' T w /\ ~ evalK phi w.
+
+  Variable psi : form.
+
+  Let TP phi :=
+    phi = Or psi (Neg psi).
 
   Instance trivial_model :
     KripkeModel.
@@ -391,66 +658,9 @@ Section WLEM.
 
 End WLEM.
 
-Section WDNS.
 
-  Context {D : DerivationType}.
 
-  Hypothesis all_T_satis : forall (T : form -> Prop) (phi : form), ~ T ⊢T phi
-                           -> exists (M : KripkeModel) w, ~ ~ evalK' T w /\ ~ evalK phi w.
 
-  Variable p : nat -> Prop.
-
-  Let TP phi :=
-    exists n, phi = Or (Var n) (Neg (Var n)) \/ p n /\ phi = Var n \/ ~ p n /\ phi = Neg (Var n).
-
-  Instance pointwise_model :
-    KripkeModel.
-  Proof.
-    unshelve eapply mkKripkeModel.
-    - exact unit.
-    - exact (fun _ _ => True).
-    - exact (fun _ _ => True).
-    - exact (fun _ n => p n).
-    - split; auto.
-    - cbn. trivial.
-    - intuition.
-    - cbn. trivial.
-  Defined.
-
-  Lemma pointwise_model_constraint :
-    model_constraint D pointwise_model.
-  Proof.
-    destruct D; cbn; trivial. intros w. exists w. cbn. trivial.
-  Qed.
-
-  Lemma pointwise_model_TP A :
-    (forall phi, In phi A -> TP phi) -> ~ ~ models.evalK' A tt.
-  Proof.
-    intros HA. induction A; intros H.
-    - apply H. intros phi [].
-    - apply IHA; auto. intros H'. destruct (HA a) as [n Hn]; auto.
-      assert (Hp : ~ ~ (p n \/ ~ p n)) by tauto. apply Hp. intros Hp'.
-      apply H. intros phi [<-| HP]; try now apply H'.
-      destruct Hn as [->|[[Ha ->]|[Ha ->]]]; cbn; tauto.
-  Qed.
-
-  Theorem WDNS : 
-    ~ ~ (forall n, ~ p n \/ ~ ~ p n).
-  Proof.
-    intros dns.
-    destruct (@all_T_satis TP Bot) as [M[w[HM _]]].
-    - intros [A[H1 H2]]. apply (pointwise_model_TP H1). intros HA.
-      now apply (@soundness _ _ _ H2 _ pointwise_model_constraint tt).
-    - apply HM. intros HM'. apply dns. intros n.
-      destruct (HM' (Or (Var n) (Neg (Var n)))) as [H|H].
-      + exists n. now left.
-      + right. intros HP. assert (HTP : TP (Neg (Var n))) by (exists n; tauto).
-        apply (HM' (Neg (Var n)) HTP w); try apply preorderCogn. apply H.
-      + left. intros HP. apply (H w); try apply preorderCogn.
-        assert (HTP : TP (Var n)) by (exists n; tauto). apply (HM' (Var n) HTP).
-  Qed.
-
-End WDNS.
       
       
       
