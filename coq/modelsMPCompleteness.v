@@ -128,6 +128,8 @@ We first define the relations.
 
 End Canonical.
 
+
+
 Lemma canonicalIEL : isIEL (@canonical normal).
 Proof.
   intros w.
@@ -316,25 +318,118 @@ Section Completeness.
      - split; firstorder.
   Qed.
 
-  Lemma WLEMStrongQuasiModelExistence' {d: DerivationType} (Gamma: theory) (phi: form): 
+  Lemma WLEMStrongModelExistence' {d: DerivationType} (Gamma: theory) (phi: form): 
     ~ Gamma ⊢T phi -> exists w : @world canonical, evalK' Gamma w /\ ~ evalK phi w.
   Proof.
     intros H. exists (lindenBaumTheory H). split.
     - intros psi H'. apply WLEM_truth_lemma. cbn. now apply max_subset.
     - intros H'. apply (does_not_derive H). apply ndtA.
-      change (T (lindenBaumTheory H) phi). now apply truth_lemma.
+      change (T (lindenBaumTheory H) phi). now apply WLEM_truth_lemma.
   Qed.
 
-  Lemma WLEMStrongQuasiModelExistence {d: DerivationType} (Gamma: theory) (phi: form): 
+  Lemma WLEMStrongModelExistence {d: DerivationType} (Gamma: theory) (phi: form): 
     ~ Gamma ⊢T phi -> exists M (w : @world M), evalK' Gamma w /\ ~ evalK phi w.
   Proof.
-    intros H. exists canonical. now apply WLEMStrongQuasiModelExistence'.
+    intros H. exists canonical. now apply WLEMStrongModelExistence'.
   Qed.
 
   Lemma WLEMStrongQuasiCompleteness {d: DerivationType} (Γ: theory) (φ: form): 
     (entails Γ φ) -> ~ ~ Γ ⊢T φ.
   Proof.
-    intros H1 H2. destruct (WLEMStrongQuasiModelExistence' H2) as [w[Hw1 Hw2]].
+    intros H1 H2. destruct (WLEMStrongModelExistence' H2) as [w[Hw1 Hw2]].
+    apply Hw2. apply H1; try apply Hw1.
+    destruct d eqn:deq; cbn; trivial. apply canonicalIEL.
+  Qed.
+
+  Hypothesis WDNS : forall p : form -> Prop, ~ ~ (forall n, ~ p n \/ ~ ~ p n).
+
+  Lemma WDNS_prime {d: DerivationType} T :
+    stable T -> (forall a b, T (a∨b) -> ~ ~ (T a \/ T b)) -> ~ ~ (forall a b, T (a∨b) -> T a \/ T b).
+  Proof.
+    intros Hs Hp H. apply (@WDNS T). intros H'.
+    apply H. intros a b Hab % Hp. destruct (H' a), (H' b); try tauto.
+    all: eauto using Hs.
+  Qed.
+
+  Lemma WDNS_truth_lemma {d: DerivationType} : forall (X: form) (t: (@world  canonical)), 
+    is_prime (T t) -> ((evalK X t) <-> (T t) X).
+  Proof.
+    intros x.
+     induction x.
+     - intros t Ht. split.
+       + intro H0. apply Tstable. intro H'.
+         assert (H: ~ unbox (T t) ⊢T x).
+         * intros H. now apply H', deductionGamma, modalShiftingLemma.
+         * assert (exists Δ: mcTheory , (unbox (T t)) ⊆ (T Δ)
+                                   /\ ~((T Δ) x)).
+           {  
+             exists (lindenBaumTheory H).
+             split.
+             - apply max_subset.
+             - intro. apply ndtA in H1.
+               apply does_not_derive in H1; auto. 
+           }
+           destruct H1. destruct H1.  
+           assert (HT : ~ ~ is_prime (T x0)) by admit. apply HT. intros HT'.
+           apply H2.  apply IHx; auto. 
+
+
+       + intros A. simpl evalK. intros r V. apply IHx; try auto. admit.
+         
+     - intros t Ht. split. 
+       +
+         intro.
+         apply deductionGamma. rewrite deductionGamma. apply Tstable.
+         intro. 
+         enough (exists Δ: mcTheory, (T t) ⊆ (T Δ) /\ ((T Δ) x1) /\ ~((T Δ) x2)). destruct H1 as [Δ H2].
+         specialize (H Δ).
+         assert (HT : ~ ~ is_prime (T Δ)) by admit. apply HT. intros HT'.
+         destruct H2. destruct H2. apply H3. apply IHx2; trivial. firstorder eauto.
+         (*    apply IHx1. exact H2.  *)
+         rewrite<- deductionGamma in H0. rewrite ImpAgree in H0.
+         destruct (Lindenbaum H0).
+         exists (lindenBaumTheory H0).
+         split. intros x H3. firstorder eauto. split. 
+         * apply deductionGamma. apply ndtW with  (x1#(T t)). apply ndtA. left. reflexivity. unfold lindenBaumTheory. cbn. apply max_subset.
+         * rewrite<- deductionGamma. destruct H2. auto.   
+       + intros. intros w H1 H2. apply IHx2. admit. apply deductionGamma. apply ndtIE with (s := x1). apply deductionGamma. apply H1. exact H. apply deductionGamma. apply IHx1. admit. exact H2.
+     - intros t Ht. split.     
+       + intro H.
+         destruct H.
+         apply deductionGamma. 
+         apply ndtCI; apply ndtA.
+         * apply IHx1; trivial.
+         * apply IHx2; trivial.
+       + intros H1.  split.
+         * apply deductionGamma in H1.  apply ndtCEL in H1. apply IHx1; trivial. 
+           apply deductionGamma.  auto.
+         * apply deductionGamma in H1.  apply ndtCER in H1. apply IHx2; trivial. 
+           apply deductionGamma.  auto.
+     - intros t Ht.  simpl evalK.
+       rewrite IHx1; trivial. rewrite IHx2; trivial.
+       repeat rewrite <- deductionGamma. specialize (Ht x1 x2).
+       split; trivial. intros [H|H].
+       + now apply ndtDIL.
+       + now apply ndtDIR.
+     - intros t Ht. split.
+       + intro. exfalso. apply H.
+       + intro.  exfalso. apply (Tconsistent H). 
+     - split; firstorder.
+  Admitted.
+
+  Lemma WDNStrongQuasiModelExistence' {d: DerivationType} (Gamma: theory) (phi: form): 
+    ~ Gamma ⊢T phi -> ~ ~ exists w : @world canonical, evalK' Gamma w /\ ~ evalK phi w.
+  Proof.
+    intros H HT. apply HT. exists (lindenBaumTheory H). split.
+    - intros psi H'. apply WDNS_truth_lemma. admit. cbn. now apply max_subset.
+    - intros H'. apply (does_not_derive H). apply ndtA.
+      change (T (lindenBaumTheory H) phi). now apply truth_lemma.
+  Admitted.
+
+  Lemma WDNSStrongQuasiCompleteness {d: DerivationType} (Γ: theory) (φ: form): 
+    (entails Γ φ) -> ~ ~ Γ ⊢T φ.
+  Proof.
+    intros H1 H2. apply (WDNStrongQuasiModelExistence' H2). intros [w[Hw1 Hw2]].
     apply Hw2. apply H1; try apply Hw1.
     destruct d eqn:deq; cbn; trivial. apply canonicalIEL.
   Qed.
@@ -537,5 +632,26 @@ Lemma WDNS_equiv :
 Proof.
   intros H1 H2 H. apply H1. intros H'. apply H. intros n. apply H'.
 Qed.
+
+
+
+
+
+(* another attempt *)
+
+Definition wdns := forall p : nat -> Prop, ~ ~ (forall n, ~ p n \/ ~ ~ p n).
+Definition ddns := forall p q : nat -> Prop, (forall n, ~ ~ (~ p n \/ ~ q n)) -> ~ ~ (forall n, ~ p n \/ ~ q n).
+
+Lemma wdns_ddns :
+  wdns <-> ddns.
+Proof.
+  split.
+  - intros H p q H1 H2. apply (H p). intros H3. apply (H q). intros H4.
+    apply H2. intros n. destruct (H3 n), (H4 n); try tauto. firstorder.
+  - intros H p H'. apply (H p (fun n => ~ p n)).
+    + intros n. tauto.
+    + apply H'.
+Qed.
+
 
 
