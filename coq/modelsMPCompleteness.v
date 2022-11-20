@@ -128,7 +128,61 @@ We first define the relations.
 
 End Canonical.
 
+Section Canonical'.
+  (** 
+We define the *canonical models*, whose worlds are the maximally consistent theories.
+We first define the relations.
+   **)
+  Context {d : DerivationType}. 
 
+  Record mcTheory' := mkmcTheory' {
+                         T': theory;
+                         Ttheory': forall φ, (@ndT d T' φ) -> T' φ;
+                         Tconsistent':  ~(T' ⊥);
+                         Tprime': is_prime T';
+                         Tstable' : stable T';
+                       }.
+
+  Definition lindenBaumTheory' (Γ: theory) (φ: form) (H: ~(ndT Γ φ)) (H' : is_prime (max Γ φ)) :mcTheory'.
+    destruct (Lindenbaum H).  destruct H1. destruct H2.
+
+
+    apply mkmcTheory' with (T' := (max Γ φ)). 
+    + tauto. 
+    + intro. apply H1. apply ndtE. apply ndtA. assumption.
+    + apply H'.
+    + now apply Lindenbaum_stable.
+  Defined.
+
+  (*Lemma lindenBaumTheorySubset' Γ (φ: form) (H: ~(ndT Γ φ)) : exists Δ: mcTheory' ,Γ ⊆ (T' Δ).
+  Proof.
+    exists (lindenBaumTheory' H).
+    simpl T. assert ( (T (lindenBaumTheory H)) = (max Γ φ)). cbv. firstorder.  unfold lindenBaumTheory. apply max_subset. 
+  Qed.*)
+
+
+  Definition subsetMKT' (A B: mcTheory') := subset (T' A) (T' B).
+  Definition valuationMKT' (A: mcTheory') (a: nat) := (T' A) (Var a).
+  
+  Definition subsetVerif' (A B:mcTheory') := 
+    forall a, ((T' A) (K a)) -> (T' B) a.
+  Instance canonical': (KripkeModel).
+  Proof.
+    apply mkKripkeModel with (world := mcTheory') (cogn := subsetMKT') (val := valuationMKT') (verif := subsetVerif').
+    all: try firstorder.
+    intros A B c d' E. apply Ttheory' with (φ := d'). destruct B. simpl. apply ndtA. apply c. apply ndtA in E. apply ndtKpos in E.
+      apply Ttheory' in E. exact E.
+  Defined.
+
+  Lemma deductionGamma' (Gamma: mcTheory') (phi: form):  ndT (T' Gamma) phi <-> (T' Gamma) phi.
+  Proof.
+    split.
+    - intro. apply Ttheory' in H. exact H.
+    - apply ndtA.
+  Qed.
+  Hint Resolve deductionGamma : core.
+
+End Canonical'.
 
 Lemma canonicalIEL : isIEL (@canonical normal).
 Proof.
@@ -151,6 +205,7 @@ Proof.
   apply unbox_rewrite.
   exact H1.
 Qed.
+
 
 (** ** Strong Completeness *)
 Section Completeness.
@@ -351,87 +406,104 @@ Section Completeness.
     all: eauto using Hs.
   Qed.
 
-  Lemma WDNS_truth_lemma {d: DerivationType} : forall (X: form) (t: (@world  canonical)), 
-    is_prime (T t) -> ((evalK X t) <-> (T t) X).
+  Lemma WDNS_max {d: DerivationType} T x :
+    ~ T ⊢T x -> ~ ~ is_prime (max T x).
+  Proof.
+    intros H1 H2. destruct (Lindenbaum H1) as [_ [_ [H5 H6]]]. 
+    apply (@WDNS_prime _ (max T x)).
+    - now apply Lindenbaum_stable.
+    - intros a b H3 H4. apply (H5 a b). intros [H'|H']; try apply H4.
+      + now apply ndtA. 
+      + left. now apply H6.
+      + right. now apply H6.
+    - intros H. apply H2. intros a b H'. destruct (H a b (H6 _ H')) as [Hl|Hr].
+      + left. now apply ndtA.
+      + right. now apply ndtA.
+  Qed.
+
+  Lemma WDNS_truth_lemma {d: DerivationType} : forall (X: form) (t: (@world  canonical')), 
+    (evalK X t) <-> (T' t) X.
   Proof.
     intros x.
      induction x.
-     - intros t Ht. split.
-       + intro H0. apply Tstable. intro H'.
-         assert (H: ~ unbox (T t) ⊢T x).
-         * intros H. now apply H', deductionGamma, modalShiftingLemma.
-         * assert (exists Δ: mcTheory , (unbox (T t)) ⊆ (T Δ)
-                                   /\ ~((T Δ) x)).
+     - split.
+       + intro H0. apply Tstable'. intro H'.
+         assert (H: ~ unbox (T' t) ⊢T x).
+         * intros H. now apply H', deductionGamma', modalShiftingLemma.
+         * assert (HT : ~ ~ is_prime (max (unbox (T' t)) x)) by now apply WDNS_max. apply HT. intros HT'.
+           assert (exists Δ: mcTheory' , (unbox (T' t)) ⊆ (T' Δ)
+                                   /\ ~((T' Δ) x)).
            {  
-             exists (lindenBaumTheory H).
+             exists (lindenBaumTheory' H HT').
              split.
              - apply max_subset.
              - intro. apply ndtA in H1.
                apply does_not_derive in H1; auto. 
            }
-           destruct H1. destruct H1.  
-           assert (HT : ~ ~ is_prime (T x0)) by admit. apply HT. intros HT'.
-           apply H2.  apply IHx; auto. 
+           destruct H1. destruct H1. apply H2. apply IHx; auto. 
 
 
-       + intros A. simpl evalK. intros r V. apply IHx; try auto. admit.
+       + intros A. simpl evalK. intros r V. apply IHx; try auto.
          
-     - intros t Ht. split. 
+     - split. 
        +
          intro.
-         apply deductionGamma. rewrite deductionGamma. apply Tstable.
-         intro. 
-         enough (exists Δ: mcTheory, (T t) ⊆ (T Δ) /\ ((T Δ) x1) /\ ~((T Δ) x2)). destruct H1 as [Δ H2].
-         specialize (H Δ).
-         assert (HT : ~ ~ is_prime (T Δ)) by admit. apply HT. intros HT'.
-         destruct H2. destruct H2. apply H3. apply IHx2; trivial. firstorder eauto.
-         (*    apply IHx1. exact H2.  *)
-         rewrite<- deductionGamma in H0. rewrite ImpAgree in H0.
-         destruct (Lindenbaum H0).
-         exists (lindenBaumTheory H0).
-         split. intros x H3. firstorder eauto. split. 
-         * apply deductionGamma. apply ndtW with  (x1#(T t)). apply ndtA. left. reflexivity. unfold lindenBaumTheory. cbn. apply max_subset.
-         * rewrite<- deductionGamma. destruct H2. auto.   
-       + intros. intros w H1 H2. apply IHx2. admit. apply deductionGamma. apply ndtIE with (s := x1). apply deductionGamma. apply H1. exact H. apply deductionGamma. apply IHx1. admit. exact H2.
-     - intros t Ht. split.     
+         apply deductionGamma'. rewrite deductionGamma'. apply Tstable'.
+         intro. rewrite<- deductionGamma' in H0. rewrite ImpAgree in H0.
+         assert (HT : ~ ~ is_prime (max (x1 # T' t) x2)) by now apply WDNS_max. apply HT. intros HT'.
+         enough (exists Δ: mcTheory', (T' t) ⊆ (T' Δ) /\ ((T' Δ) x1) /\ ~((T' Δ) x2)).
+         -- destruct H1 as [Δ H2]. specialize (H Δ).
+            destruct H2. destruct H2. apply H3. apply IHx2; trivial. firstorder eauto.
+         -- destruct (Lindenbaum H0).
+            exists (lindenBaumTheory' H0 HT').
+            split. intros x H3. cbn. apply H1. now right. split.
+         * apply deductionGamma'. apply ndtW with  (x1#(T' t)). apply ndtA. left. reflexivity. unfold lindenBaumTheory. cbn. apply max_subset.
+         * rewrite<- deductionGamma'. destruct H2. auto.   
+       + intros. intros w H1 H2. apply IHx2. apply deductionGamma'. apply ndtIE with (s := x1). apply deductionGamma'. apply H1. exact H. apply deductionGamma'. apply IHx1. exact H2.
+     - split.     
        + intro H.
          destruct H.
-         apply deductionGamma. 
+         apply deductionGamma'. 
          apply ndtCI; apply ndtA.
          * apply IHx1; trivial.
          * apply IHx2; trivial.
        + intros H1.  split.
-         * apply deductionGamma in H1.  apply ndtCEL in H1. apply IHx1; trivial. 
-           apply deductionGamma.  auto.
-         * apply deductionGamma in H1.  apply ndtCER in H1. apply IHx2; trivial. 
-           apply deductionGamma.  auto.
-     - intros t Ht.  simpl evalK.
+         * apply deductionGamma' in H1.  apply ndtCEL in H1. apply IHx1; trivial. 
+           apply deductionGamma'.  auto.
+         * apply deductionGamma' in H1.  apply ndtCER in H1. apply IHx2; trivial. 
+           apply deductionGamma'.  auto.
+     - intros t. simpl evalK.
        rewrite IHx1; trivial. rewrite IHx2; trivial.
-       repeat rewrite <- deductionGamma. specialize (Ht x1 x2).
-       split; trivial. intros [H|H].
+       repeat rewrite <- deductionGamma'. symmetry.
+       split; (try apply (@Tprime' _ t)). intros [H|H].
        + now apply ndtDIL.
        + now apply ndtDIR.
-     - intros t Ht. split.
+     - intros t. split.
        + intro. exfalso. apply H.
-       + intro.  exfalso. apply (Tconsistent H). 
+       + intro.  exfalso. apply (Tconsistent' H). 
      - split; firstorder.
-  Admitted.
+  Qed.
 
   Lemma WDNStrongQuasiModelExistence' {d: DerivationType} (Gamma: theory) (phi: form): 
-    ~ Gamma ⊢T phi -> ~ ~ exists w : @world canonical, evalK' Gamma w /\ ~ evalK phi w.
+    ~ Gamma ⊢T phi -> ~ ~ exists w : @world canonical', evalK' Gamma w /\ ~ evalK phi w.
   Proof.
-    intros H HT. apply HT. exists (lindenBaumTheory H). split.
-    - intros psi H'. apply WDNS_truth_lemma. admit. cbn. now apply max_subset.
+    intros H HT.
+    assert (HG : ~ ~ is_prime (max Gamma phi)) by now apply WDNS_max. apply HG. intros HG'.
+    apply HT. exists (lindenBaumTheory' H HG'). split.
+    - intros psi H'. apply WDNS_truth_lemma. cbn. now apply max_subset.
     - intros H'. apply (does_not_derive H). apply ndtA.
-      change (T (lindenBaumTheory H) phi). now apply truth_lemma.
-  Admitted.
+      change (T' (lindenBaumTheory' H HG') phi). now apply WDNS_truth_lemma.
+  Qed.
 
-  Lemma WDNSStrongQuasiCompleteness {d: DerivationType} (Γ: theory) (φ: form): 
+  (* canonical model is only weakly an IEL model, so result just for IEL- here *)
+
+  Existing Instance minus.
+
+  Lemma WDNSStrongQuasiCompleteness (Γ: theory) (φ: form): 
     (entails Γ φ) -> ~ ~ Γ ⊢T φ.
   Proof.
     intros H1 H2. apply (WDNStrongQuasiModelExistence' H2). intros [w[Hw1 Hw2]].
-    apply Hw2. apply H1; try apply Hw1.
-    destruct d eqn:deq; cbn; trivial. apply canonicalIEL.
+    apply Hw2. apply H1; try apply Hw1. cbn. tauto.
   Qed.
 
 End Completeness.
